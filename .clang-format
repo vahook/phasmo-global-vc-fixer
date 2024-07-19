@@ -1,0 +1,36 @@
+BasedOnStyle: LLVM
+
+UseTab: Never
+UseCRLF: false
+IndentWidth: 2
+ColumnLimit: 120
+NamespaceIndentation: None
+ContinuationIndentWidth: 2
+
+SortIncludes: Never
+BreakBeforeBraces: Linux
+BreakBeforeConceptDeclarations: Always
+BreakBeforeInlineASMColon: OnlyMultiline
+AlwaysBreakTemplateDeclarations: true
+EmptyLineBeforeAccessModifier: Always
+IndentAccessModifiers: false
+IndentExternBlock: NoIndent
+IndentGotoLabels: false
+IndentPPDirectives: None
+IndentRequiresClause: true
+PointerAlignment: Left
+AlignTrailingComments: Always
+AlignEscapedNewlines: Left
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: true
+AlignOperands: Align
+DeriveLineEnding: false
+AllowShortBlocksOnASingleLine: Empty
+FixNamespaceComments: true
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AlignAfterOpenBracket: BlockIndent
+PackConstructorInitializers: CurrentLine
+QualifierAlignment: Custom
+QualifierOrder: ['inline', 'static', 'constexpr', 'const', 'volatile', 'restrict', 'type']

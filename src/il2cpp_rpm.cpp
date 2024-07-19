@@ -266,7 +266,7 @@ bool Il2CppRPM::il2cpp_string_readUTF8(uintptr_t strPtr, std::string& out)
     return false;
   try {
     out = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{}.to_bytes(tmp);
-  } catch (const std::range_error& e) {
+  } catch (const std::range_error&) {
     return false;
   }
   return true;

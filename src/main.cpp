@@ -1,3 +1,6 @@
+// See: https://github.com/actions/runner-images/issues/10004#issuecomment-2156109231
+#define _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR 1
+
 #include <iostream>
 #include <filesystem>
 #include <thread>

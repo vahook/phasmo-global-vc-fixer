@@ -135,10 +135,10 @@ WinRPM::MappedFileInfo WinRPM::getMappedFileInfo(PathViewType filename)
     unsigned long long fileOffset, inode;
     unsigned devMajor, devMinor;
     int pathPos;
-    if (
-      ::sscanf(
-        buffer, "%lx-%lx %4s %llx %x:%x %llu%n", &addrStart, &addrEnd, perms, &fileOffset, &devMajor, &devMinor, &inode,
-        &pathPos) < 7)
+    if (::sscanf(
+          buffer, "%lx-%lx %4s %llx %x:%x %llu%n", &addrStart, &addrEnd, perms, &fileOffset, &devMajor, &devMinor,
+          &inode, &pathPos
+        ) < 7)
       continue;
 
     // We are looking for the base address
@@ -307,6 +307,44 @@ static const SYSTEM_INFO g_systemInfo = []() {
   return si;
 }();
 
+static std::filesystem::path devicePathToDosPath(std::wstring_view path)
+{
+  // Wine can incorrectly returns an NT path  ("\??\...") insted of a device path ("\Device\HarddiskVolume1\...").
+  // The tests for this in wine are also marked as todo.
+  if (path.starts_with(L"\\??\\"))
+    path.remove_prefix(4);
+
+  // Fast fail if either the path is too short or already contains a volume / drive letter.
+  if (path.size() < 3 || (path[1] == L':' && path[2] == L'\\'))
+    return path;
+
+  // Assume that it's a device path
+  // NOTE: On native Windows, prefixing the path with "\\?\GLOBALROOT" would also be an option if we only want to
+  //  use it in winapi functions (and not with std::filesystem).
+  wchar_t drive[3] = L"A:";
+  wchar_t dosDeviceBuffer[MAX_PATH];
+  for (DWORD drives = ::GetLogicalDrives(); drives; ++drive[0], drives >>= 1u) {
+    // Is this a drive available?
+    if (!(drives & 1))
+      continue;
+
+    // NOTE: Docs say QueryDosDeviceW might return multiple strings
+    if (!::QueryDosDeviceW(drive, dosDeviceBuffer, (DWORD)std::size(dosDeviceBuffer)))
+      continue;
+
+    std::wstring_view dosDevice{dosDeviceBuffer};
+    if (path.starts_with(dosDevice)) {
+      std::wstring dosPath;
+      dosPath.reserve(2 + path.size() - dosDevice.size());
+      dosPath.assign(drive, 2);
+      dosPath.append(path.substr(dosDevice.size()));
+      return std::move(dosPath);
+    }
+  };
+
+  return path;
+}
+
 WinRPM::MappedFileInfo WinRPM::getMappedFileInfo(PathViewType filename)
 {
   if (!this->isOpen())
@@ -322,9 +360,7 @@ WinRPM::MappedFileInfo WinRPM::getMappedFileInfo(PathViewType filename)
     }
 
     // Look for mapped regions backed by a file
-    if (mbi.State == MEM_COMMIT && mbi.Type == MEM_MAPPED) {
-      // FIXME: MAX_PATH *should* include the null-terminator, however MSDN example code for some reason uses a
-      //  buffer of length MAX_PATH + 1 .
+    if (mbi.Type == MEM_MAPPED && mbi.State == MEM_COMMIT) {
       wchar_t pathBuffer[MAX_PATH];
       const auto pathLength = ::GetMappedFileNameW(m_state.handle, address, pathBuffer, MAX_PATH);
       if (!pathLength)
@@ -332,19 +368,18 @@ WinRPM::MappedFileInfo WinRPM::getMappedFileInfo(PathViewType filename)
 
       std::wstring_view path{pathBuffer, pathLength};
 
-      // Remove the NT path prefix ('\??\').
-      // TODO: better path normalization
-      if (path.starts_with(L"\\??\\"))
-        path.remove_prefix(4);
-
-      // Fast fail
+      // Fast fail (because device paths can only shrink)
       if (path.size() < filename.size())
         continue;
 
       // Check for a filename match (might be slightly faster than creating an std::filesystem::path every time)
       const auto slashPos = path.rfind(L'\\');
-      if (!path.compare(slashPos == path.npos ? 0 : slashPos + 1, path.npos, filename))
-        return {{(uintptr_t)mbi.BaseAddress, (uintptr_t)mbi.BaseAddress + (uintptr_t)mbi.RegionSize}, path};
+      if (!path.compare(slashPos == path.npos ? 0 : slashPos + 1, path.npos, filename)) {
+        return {
+          {(uintptr_t)mbi.BaseAddress, (uintptr_t)mbi.BaseAddress + (uintptr_t)mbi.RegionSize},
+          devicePathToDosPath(path)
+        };
+      }
     }
   }
 

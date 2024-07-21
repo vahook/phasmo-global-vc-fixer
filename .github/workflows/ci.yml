@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+
+jobs:
+  build-linux-clang:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ github.workspace }}/build
+        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        -DCMAKE_C_COMPILER=clang
+        -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_C_FLAGS=-m64
+        -DCMAKE_CXX_FLAGS=-m64
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ github.workspace }}/build
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-linux-clang
+        if-no-files-found: error
+        path: |
+          build/phasmo_global_vc_fixer
+          
+  build-windows-msvc:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ github.workspace }}/build
+        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        -A x64
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-windows-msvc
+        if-no-files-found: error
+        path: |
+          build/${{ env.BUILD_TYPE }}/phasmo_global_vc_fixer.exe
+          build/${{ env.BUILD_TYPE }}/phasmo_global_vc_fixer.pdb

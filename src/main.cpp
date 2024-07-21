@@ -10,6 +10,9 @@
 #elif _WIN32
 #define _AMD64_
 #include <consoleapi.h>
+#include <ConsoleApi3.h>
+#include <winuser.h>
+#include <processthreadsapi.h>
 #endif
 
 #include "phasmem.h"
@@ -24,7 +27,10 @@ static void printHelp(const char* argv0)
     << "Usage: " << progName << " [OPTIONS]...\n"
        "  -h, --help           print this message and exit\n"
        "  -v, --verbose        print extended debug messages\n"
-       "  -s, --singleshot     do not run in a loop, quit after one fix attempt\n"
+       "  -l, --loop           run in a loop (default)\n"
+       "  -s, --singleshot     don't run in a loop, quit after one fix attempt\n"
+       "  -w, --wait-exit      wait for user input before exiting (default on Windows when run outside of cmd.exe)\n"
+       "  -q, --quick-exit     don't wait for user input before exiting (default on Linux)\n"
        "  --dont-load-cache    bypass the cache and resolve the offsets directly from the game's memory\n"
        "  --dont-save-cache    don't save the offsets to cache\n"
        "  --force [1/0]        force the isGhostSpawned flag to either true or false (for demonstration purposes)\n";
@@ -52,13 +58,37 @@ inline static bool waitForShutdown(const T& delay)
   return (g_shutdownCv.wait_for(shutdownLock, delay, []() { return g_shutdown; }));
 }
 
+static bool g_shouldWaitBeforeExit = false;
+static void waitBeforeExit()
+{
+  if (!g_shouldWaitBeforeExit)
+    return;
+
+  std::cout << "Press any key to exit...\n";
+  ::getchar();
+}
+
 int main(int argc, const char* argv[])
 {
-  std::cout << "--- Phasmophobia global voice chat fixer ---\n";
+  std::cout << "--------------------------------------------------------\n"
+               "--- Phasmophobia global voice chat fixer             ---\n"
+               "--- https://github.com/vahook/phasmo-global-vc-fixer ---\n"
+               "--------------------------------------------------------\n";
 
   // --------------------
   // - Arguments
   // --------------------
+
+#if _WIN32
+  // Windows users might just run the exe on its own, outside of an already existing console window.
+  // If so, give them a chance to read the logs by default.
+  DWORD procId{};
+  g_shouldWaitBeforeExit =
+    (::GetWindowThreadProcessId(::GetConsoleWindow(), &procId) && procId == ::GetCurrentProcessId());
+#elif __linux__
+  // On Linux, don't wait by default.
+  g_shouldWaitBeforeExit = false;
+#endif
 
   bool verbose = false;
   bool singleshot = false;
@@ -73,8 +103,14 @@ int main(int argc, const char* argv[])
       return 0;
     } else if (arg == "-v" || arg == "--verbose") {
       verbose = true;
+    } else if (arg == "-l" || arg == "--loop") {
+      singleshot = false;
     } else if (arg == "-s" || arg == "--singleshot") {
       singleshot = true;
+    } else if (arg == "-w" || arg == "--wait-exit") {
+      g_shouldWaitBeforeExit = true;
+    } else if (arg == "-q" || arg == "--quick-exit") {
+      g_shouldWaitBeforeExit = false;
     } else if (arg == "--dont-load-cache") {
       sholdLoadCache = false;
     } else if (arg == "--dont-save-cache") {
@@ -131,7 +167,7 @@ int main(int argc, const char* argv[])
       while (openStatus == Il2CppRPM::OpenResult::NotFound) {
         std::cout << "[Info]: Waiting for Phasmophobia. Retrying in " << openRetryDelay << "\n";
         if (waitForShutdown(openRetryDelay))
-          return 0;
+          return (waitBeforeExit(), 0);
 
         // Try again
         openStatus = g_phasMem.open();
@@ -144,10 +180,10 @@ int main(int argc, const char* argv[])
       break;
     case Il2CppRPM::OpenResult::NoPrivileges:
       std::cout << "[Error]: Didn't have permission to open Phasmophobia.\n";
-      return 1;
+      return (waitBeforeExit(), 1);
     default:
       std::cout << "[Error]: Error while trying to open Phasmophobia.\n";
-      return 1;
+      return (waitBeforeExit(), 1);
     }
   }
 
@@ -156,17 +192,17 @@ int main(int argc, const char* argv[])
     g_phasMem.init();
     const auto maxAttempt = singleshot ? 1 : maxInitAttempts;
     for (int attempt = 1; !g_phasMem.isInited();) {
-      std::cout << "[Error]: Couldn't initialize Phasmophobia offsets (attempt " << attempt << "/" << maxAttempt
-                << ").\n";
+      std::cout << "[Error]: Couldn't initialize Phasmophobia offsets, maybe the game hasn't loaded yet. (attempt "
+                << attempt << "/" << maxAttempt << ").\n";
 
       // Out of attempts
       if (++attempt > maxAttempt)
-        return 1;
+        return (waitBeforeExit(), 1);
 
       // Wait a little, Phasmo might haven't been initialized yet
       std::cout << "[Info]: Retrying in " << initRetryDelay << "\n";
       if (waitForShutdown(initRetryDelay))
-        return 0;
+        return (waitBeforeExit(), 0);
 
       // Try again
       g_phasMem.init();
@@ -196,10 +232,10 @@ int main(int argc, const char* argv[])
 
         // Wait a little
         if (waitForShutdown(fixDelay))
-          return 0;
+          return (waitBeforeExit(), 0);
       };
     }
   }
 
-  return 0;
+  return (waitBeforeExit(), 0);
 }

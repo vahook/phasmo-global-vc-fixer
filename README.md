@@ -9,23 +9,36 @@ Even though I haven't been banned for using it: **I'm not taking any responsibil
 
 ## Using the fix
 
-I made two versions: one for native [Windows](win-binary), and another one for native [Linux](linux-binary). The latter one uses the `procfs` to interact with the game's memory, so make sure you have ptrace capabilities. But it's also possible to use the Windows version inside Phasmo's proton prefix (for example by using [protontricks](https://github.com/Matoking/protontricks): `protontricks-launch --appid 739630 --no-bwrap phasmo_global_vc_fixer.exe`).
+**Important to clarify: the fix (just like the bug itself) is CLIENT-SIDE, meaning this program can only fix the walkie-talkies of REMOTE PLAYERS on YOUR END. If your friend also suffers from this bug, they will also have to run it on their end.**
 
-The program is a simple console application that you can simply run as is. By default, it will scan Phasmo's memory every few seconds looking for glitched walkie-talkies to fix. By appending the `-s` (or `--singleshot`) flag, you can have it quit after just one fix attempt. This is useful if you want to apply the fix manually whenever you see the bug occouring rather than having the program constantly running in the background.
+The program is a simple console application that you can simply run as is. I made two versions: one for native Windows (`phasmo_global_vc_fixer.exe`), and another one for native Linux (`phasmo_global_vc_fixer`). You can find both in the [release section](https://github.com/vahook/phasmo-global-vc-fixer/releases/latest) (or optionally, check [how you can built it yourself](#building)). The latter one uses the `procfs` to interact with the game's memory, so make sure you have ptrace capabilities. But it's also possible to use the Windows version inside Phasmo's proton prefix (for example by using [protontricks](https://github.com/Matoking/protontricks): `protontricks-launch --appid 739630 --no-bwrap phasmo_global_vc_fixer.exe`).
 
-For the other flags (which are mainly there for debugging purposes), see the help (`-h` or `--help`) below:
+### Loop mode
+
+By default, the program will scan Phasmo's memory every few seconds looking for glitched walkie-talkies to fix.
+
+### Singleshot mode
+
+By using the `-s` (or `--singleshot`) flag, you can have it quit after just one fix attempt. This is useful if you want to apply the fix manually whenever you see the bug occouring rather than having the program constantly running in the background. In this mode, `-q` (or `--quick-exit`) could also be desirable on Windows, as it will automatically close the cmd window for you, regardless of success. However, you might not be able to read the error logs. The opposite of this flag is `-w` (or `--wait-exit`). On Windows, you could create a shortcut with these arguments.
+
+### Other flags
+
+For the rest of the flags (which are mainly there for debugging purposes), see the help (`-h` or `--help`) below:
 
 ```
 Usage: phasmo_global_vc_fixer.exe [OPTIONS]...
   -h, --help           print this message and exit
   -v, --verbose        print extended debug messages
-  -s, --singleshot     do not run in a loop, quit after one fix attempt
+  -l, --loop           run in a loop (default)
+  -s, --singleshot     don't run in a loop, quit after one fix attempt
+  -w, --wait-exit      wait for user input before exiting (default on Windows)
+  -q, --quick-exit     don't wait for user input before exiting
   --dont-load-cache    bypass the cache and resolve the offsets directly from the game's memory
   --dont-save-cache    don't save the offsets to cache
   --force [1/0]        force the isGhostSpawned flag to either true or false (for demonstration purposes)
 ```
 
-By the way, if you are one of the lucky few who have never experienced this bug, you can force it to occur by using the `--force 0` option after you've started an investigation (`phasmo_global_vc_fixer.exe -s --force 0`). This will break the walkie-talkies of the remote players on your end.
+By the way, if you are one of the lucky few who have never experienced this bug, you can force it to happen by using the `--force 0` option after you've started an investigation (`phasmo_global_vc_fixer.exe -s --force 0`). This will break the walkie-talkies of the remote players **on your end**.
 
 ## The underlying cause
 

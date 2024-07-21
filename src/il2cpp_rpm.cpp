@@ -42,7 +42,7 @@ Il2CppRPM::OpenResult Il2CppRPM::open(WinRPM::PathViewType processName)
   }
 
   if (!m_metadataView.open(globalMetadata.path)) {
-    LOG_VERB("[Error]: Couldn't map 'global-metadata.dat' into memory.\n");
+    LOG_VERBF("[Error]: Couldn't map 'global-metadata.dat' into memory (path: '{}')\n", globalMetadata.path.string());
     this->close();
     return Il2CppRPM::OpenResult::Il2CppError;
   }

@@ -1,15 +1,38 @@
-name: Build
+name: Build and Release
 
 on:
   push:
-    branches: [ "master" ]
-
-env:
-  BUILD_TYPE: RelWithDebInfo
+    tags:
+      - "v*"
+    branches:
+      - "*"
 
 jobs:
-  build-linux-clang:
-    runs-on: ubuntu-24.04
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        platform: [linux, windows]
+        include:
+          - platform: linux
+            os: ubuntu-24.04
+            cmake_flags: >
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo
+              -DCMAKE_C_COMPILER=clang
+              -DCMAKE_CXX_COMPILER=clang++
+              -DCMAKE_C_FLAGS=-m64
+              -DCMAKE_CXX_FLAGS=-m64
+            artifacts: |
+              build/phasmo_global_vc_fixer
+          - platform: windows
+            os: windows-latest
+            cmake_flags: >
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo
+              -A x64
+            artifacts: |
+              build/RelWithDebInfo/phasmo_global_vc_fixer.exe
+              build/RelWithDebInfo/phasmo_global_vc_fixer.pdb
 
     steps:
     - uses: actions/checkout@v4
@@ -17,45 +40,22 @@ jobs:
     - name: Configure CMake
       run: >
         cmake -B ${{ github.workspace }}/build
-        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-        -DCMAKE_C_COMPILER=clang
-        -DCMAKE_CXX_COMPILER=clang++
-        -DCMAKE_C_FLAGS=-m64
-        -DCMAKE_CXX_FLAGS=-m64
         -S ${{ github.workspace }}
+        ${{ matrix.cmake_flags }}
 
     - name: Build
-      run: cmake --build ${{ github.workspace }}/build
+      run: cmake --build ${{ github.workspace }}/build --config RelWithDebInfo
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: build-linux-clang
+        name: build-${{ matrix.platform }}
         if-no-files-found: error
-        path: |
-          build/phasmo_global_vc_fixer
-          
-  build-windows-msvc:
-    runs-on: windows-latest
+        path: ${{ matrix.artifacts }}
 
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Configure CMake
-      run: >
-        cmake -B ${{ github.workspace }}/build
-        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-        -A x64
-        -S ${{ github.workspace }}
-
-    - name: Build
-      run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+    - name: Upload release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
       with:
-        name: build-windows-msvc
-        if-no-files-found: error
-        path: |
-          build/${{ env.BUILD_TYPE }}/phasmo_global_vc_fixer.exe
-          build/${{ env.BUILD_TYPE }}/phasmo_global_vc_fixer.pdb
+        tag_name: ${{ needs.create_release.outputs.tag-name }}
+        files: ${{ matrix.artifacts }}

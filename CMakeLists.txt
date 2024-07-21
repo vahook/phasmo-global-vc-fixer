@@ -9,3 +9,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(phasmo_global_vc_fixer src/main.cpp src/rpm.cpp src/mmap_view.cpp src/phasmem.cpp src/il2cpp_rpm.cpp)
+if (WIN32)
+  target_compile_definitions(phasmo_global_vc_fixer PUBLIC UNICODE _UNICODE)
+endif()

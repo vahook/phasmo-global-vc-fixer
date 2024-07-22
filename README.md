@@ -61,7 +61,10 @@ public class WalkieTalkie : MonoBehaviour
     private void Start()
     {
         // ...
-        GameController.instance.OnGhostSpawned.AddListener(() => {isGhostSpawned = true;});
+        if (GameController.instance != null)
+        {
+            GameController.instance.OnGhostSpawned.AddListener(() => {isGhostSpawned = true;});
+        }
         // ...
     }
 

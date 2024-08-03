@@ -25,7 +25,7 @@ struct MemRange {
 };
 
 /**
- * A simplpe class to read a remote process' memory. It works on both native Windows and Wine.
+ * A simple class to read a remote process' memory. It works on both native Windows and Wine.
  * It doesn't support Windows long paths.
  */
 class WinRPM
